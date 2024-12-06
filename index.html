@@ -1,11 +1,14 @@
-<!DOCTYPE html><html lang="en"><head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Nextbot Game</title>
 <style>
   body, html {
     margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000;
     font-family: sans-serif;
+    touch-action: none;
   }
   #overlay {
     position: absolute;
@@ -20,106 +23,183 @@
     flex-direction: column;
     z-index: 10;
   }
+  #overlay .message {
+    margin-bottom: 20px;
+  }
   #overlay button {
     font-size: 24px;
     padding: 10px 20px;
-    margin-top: 20px;
+    margin: 10px;
     cursor:pointer;
+  }
+  #overlay label {
+    display: block;
+    font-size: 20px;
+    margin: 5px 0;
+  }
+  #overlay input {
+    font-size: 20px;
+    width: 100px;
+    text-align: center;
   }
   canvas {
     display: block;
   }
+  #scoreboard {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    font-size: 24px;
+    z-index: 5;
+  }
+  /* Touch controls */
+  #touchControls {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    z-index: 10;
+  }
+  #dpad {
+    width: 150px;
+    height: 150px;
+    position: relative;
+  }
+  #dpad button {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    opacity: 0.7;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.5);
+    border: none;
+    font-size: 20px;
+    text-align: center;
+    line-height: 50px;
+    user-select: none;
+  }
+  #dpad .up { top: 0; left: 50px; }
+  #dpad .down { bottom: 0; left: 50px; }
+  #dpad .left { left: 0; top: 50px; }
+  #dpad .right { right:0; top: 50px; }
+
+  /* Touch look area (right half of screen) */
+  #lookArea {
+    position: absolute;
+    top:0; right:0; bottom:0; width: 50%;
+    z-index:10;
+  }
 </style>
-<script defer="" data-domain="gray-jennilee-71.tiiny.site" src="https://analytics.tiiny.site/js/plausible.js"></script><script type="text/javascript" src="https://tiiny.host/ad-script.js"></script></head>
-<body style="margin-bottom: 55px !important;"><div style="position: fixed !important; bottom: 0% !important; width: 100% !important; height: 55px !important; z-index: 9999 !important;"><a href="https://tiiny.host?ref=free-site">
-    <div style="padding: 10px !important; background: rgb(220,137,232) !important;
-background: linear-gradient(141deg, rgba(220,137,232,1) 0%, rgba(144,64,204,1) 100%) !important; height: 55px; text-align: center">
-      <img style="height: 35px !important; width: auto !important;" src="https://tiiny.host/assets/img/ad.png" alt="tiiny.host">
-    </div>
-  </a></div>
-<div id="overlay" style="display: none;">
-  <div class="">Game Over</div>
-  <button id="restartBtn" class="" contenteditable="true">Restart</button>
+</head>
+<body>
+<div id="overlay">
+  <div class="message"></div>
+  <div>
+    <label>Nextbot Speed: <input type="number" id="inputNextbotSpeed" value="0.32" step="0.01"></label>
+    <label>Player Speed Multiplier: <input type="number" id="inputPlayerSpeed" value="0.2" step="0.01"></label>
+    <label>Orbs Needed: <input type="number" id="inputOrbsNeeded" value="10" step="1"></label>
+  </div>
+  <button id="restartBtn">Restart</button>
 </div>
+<div id="scoreboard">Score: 0</div>
+<div id="touchControls" style="display:none;">
+  <div id="dpad">
+    <button class="up">▲</button>
+    <button class="down">▼</button>
+    <button class="left">◀</button>
+    <button class="right">▶</button>
+  </div>
+</div>
+<div id="lookArea" style="display:none;"></div>
 <script src="https://cdn.jsdelivr.net/npm/three@0.156.1/build/three.min.js"></script>
 <script>
 (function() {
     THREE.PointerLockControls = function ( camera ) {
         var scope = this;
-
-        camera.rotation.set( 0, 0, 0 );
-
+        camera.rotation.set(0,0,0);
         var pitchObject = new THREE.Object3D();
-        pitchObject.add( camera );
+        pitchObject.add(camera);
 
         var yawObject = new THREE.Object3D();
         yawObject.position.y = 1.8;
-        yawObject.add( pitchObject );
+        yawObject.add(pitchObject);
 
         var PI_2 = Math.PI / 2;
 
-        var onMouseMove = function ( event ) {
-            if ( scope.isLocked === false ) return;
-
-            var movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
-            var movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+        var onMouseMove = function(event) {
+            if (!scope.isLocked && !isTouchDevice) return; 
+            var movementX = event.movementX || 0;
+            var movementY = event.movementY || 0;
 
             yawObject.rotation.y -= movementX * 0.002;
             pitchObject.rotation.x -= movementY * 0.002;
-
-            pitchObject.rotation.x = Math.max( - PI_2, Math.min( PI_2, pitchObject.rotation.x ) );
+            pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, pitchObject.rotation.x));
         };
 
-        document.addEventListener( 'mousemove', onMouseMove, false );
+        document.addEventListener('mousemove', onMouseMove, false);
 
         this.dispose = function() {
-            document.removeEventListener( 'mousemove', onMouseMove, false );
+            document.removeEventListener('mousemove', onMouseMove, false);
         };
 
-        this.getObject = function () {
+        this.getObject = function() {
             return yawObject;
         };
 
-        this.getDirection = function() {
-            var direction = new THREE.Vector3( 0, 0, - 1 );
-            var rotation = new THREE.Euler( 0, 0, 0, 'YXZ' );
-            return function( v ) {
-                rotation.set( pitchObject.rotation.x, yawObject.rotation.y, 0 );
-                v.copy( direction ).applyEuler( rotation );
+        this.getDirection = (function() {
+            var direction = new THREE.Vector3(0,0,-1);
+            var rotation = new THREE.Euler(0,0,0,'YXZ');
+            return function(v) {
+                rotation.set(pitchObject.rotation.x, yawObject.rotation.y, 0);
+                v.copy(direction).applyEuler(rotation);
                 return v;
             };
-        }();
+        })();
 
         this.isLocked = false;
 
-        var onPointerlockChange = function () {
-            if ( document.pointerLockElement === document.body ) {
-                scope.isLocked = true;
+        var onPointerlockChange = function() {
+            scope.isLocked = (document.pointerLockElement === document.body);
+        };
+
+        var onPointerlockError = function() {
+            console.error('PointerLockControls: Unable to use Pointer Lock API');
+        };
+
+        document.addEventListener('pointerlockchange', onPointerlockChange, false);
+        document.addEventListener('pointerlockerror', onPointerlockError, false);
+
+        this.lock = function() {
+            if (!isTouchDevice) {
+              document.body.requestPointerLock();
             } else {
-                scope.isLocked = false;
+              // On mobile, just set isLocked = true
+              scope.isLocked = true;
             }
         };
 
-        var onPointerlockError = function () {
-            console.error( 'PointerLockControls: Unable to use Pointer Lock API' );
+        this.unlock = function() {
+            if (!isTouchDevice) {
+              document.exitPointerLock();
+            } else {
+              scope.isLocked = false;
+            }
         };
 
-        document.addEventListener( 'pointerlockchange', onPointerlockChange, false );
-        document.addEventListener( 'pointerlockerror', onPointerlockError, false );
-
-        this.lock = function () {
-            document.body.requestPointerLock();
-        };
-
-        this.unlock = function () {
-            document.exitPointerLock();
+        // Add methods for manual camera rotation (used for touch)
+        this.rotateCamera = function(deltaX, deltaY) {
+            yawObject.rotation.y -= deltaX * 0.002;
+            pitchObject.rotation.x -= deltaY * 0.002;
+            pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, pitchObject.rotation.x));
         };
     };
 })();
 </script>
 <script>
-/** Base64 image for the Nextbot - replace with your own base64 image **/
-const BASE64_NEXTBOT_IMAGE = "data:image/jpeg;base64,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";
+// External URLs
+const NEXTBOT_IMAGE_URL = "/nextbot_image.png";
+const NEXTBOT_SOUND_URL = "/nextbot_sound.mp3";
+const ORB_SOUND_URL = "/orb_sound.mp3";
 
 let camera, scene, renderer, controls;
 let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
@@ -127,24 +207,128 @@ let velocity = new THREE.Vector3();
 let direction = new THREE.Vector3();
 
 let objects = [];
-let boxes = []; // Store boxes and their bounding boxes
-let boundingBoxes = []; // Array of Box3 for each obstacle
+let boxes = []; 
+let boundingBoxes = [];
 
 let nextbot;
-let nextbotVelocity = 0.04; // doubled from 0.02
-let playerCollisionRadius = 0.5; 
-let nextbotCollisionRadius = 0.5;
-let gameOver = false;
+let nextbotVelocity = 0.32; // adjustable
+let playerSpeedMultiplier = 0.2; // adjustable
 
+let playerCollisionRadius = 0.5; 
+let nextbotCollisionRadius = 2; 
+let gameState = "PLAY"; // "PLAY", "GAME_OVER", "WIN"
+
+let listener, nextbotSound, orbSound;
+let soundReady = false;
+let orbSoundReady = false;
+let soundPlayInterval = null;
+
+// Gravity and vertical movement for the nextbot
+let nextbotVerticalVelocity = 0;
+const gravity = 0.02; 
+
+// Orbs
+let orbs = [];
+let orbCount = 10; 
+let collectedOrbs = 0;
+const scoreboard = document.getElementById('scoreboard');
+
+// Overlay and inputs
 const overlay = document.getElementById('overlay');
 const restartBtn = document.getElementById('restartBtn');
+const overlayMessage = document.querySelector('#overlay .message');
+const inputNextbotSpeed = document.getElementById('inputNextbotSpeed');
+const inputPlayerSpeed = document.getElementById('inputPlayerSpeed');
+const inputOrbsNeeded = document.getElementById('inputOrbsNeeded');
+
 restartBtn.addEventListener('click', restartGame);
+
+// Touch detection
+const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+const touchControls = document.getElementById('touchControls');
+const lookArea = document.getElementById('lookArea');
+if (isTouchDevice) {
+  touchControls.style.display = 'block';
+  lookArea.style.display = 'block';
+}
+
+// Touch-based movement events
+// We'll track state of movement based on touch on dpad buttons
+const dpad = document.getElementById('dpad');
+dpad.addEventListener('touchstart', onDpadTouchStart, {passive:false});
+dpad.addEventListener('touchend', onDpadTouchEnd, {passive:false});
+dpad.addEventListener('touchcancel', onDpadTouchEnd, {passive:false});
+dpad.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
+
+let activeButtons = {};
+
+function onDpadTouchStart(e) {
+  e.preventDefault();
+  for (let t of e.changedTouches) {
+    let elem = document.elementFromPoint(t.clientX, t.clientY);
+    if (elem && elem.tagName === 'BUTTON') {
+      activeButtons[t.identifier] = elem;
+      setMovementFromButton(elem, true);
+    }
+  }
+}
+
+function onDpadTouchEnd(e) {
+  e.preventDefault();
+  for (let t of e.changedTouches) {
+    let btn = activeButtons[t.identifier];
+    if (btn) {
+      setMovementFromButton(btn, false);
+      delete activeButtons[t.identifier];
+    }
+  }
+}
+
+function setMovementFromButton(button, state) {
+  if (button.classList.contains('up')) moveForward = state;
+  if (button.classList.contains('down')) moveBackward = state;
+  if (button.classList.contains('left')) moveLeft = state;
+  if (button.classList.contains('right')) moveRight = state;
+}
+
+// Touch-based look controls
+let lookActive = false;
+let lastTouchX, lastTouchY;
+
+lookArea.addEventListener('touchstart', (e)=>{
+  if (e.touches.length === 1) {
+    lookActive = true;
+    lastTouchX = e.touches[0].clientX;
+    lastTouchY = e.touches[0].clientY;
+  }
+},{passive:false});
+
+lookArea.addEventListener('touchmove', (e)=>{
+  if (lookActive && e.touches.length === 1) {
+    let dx = e.touches[0].clientX - lastTouchX;
+    let dy = e.touches[0].clientY - lastTouchY;
+    lastTouchX = e.touches[0].clientX;
+    lastTouchY = e.touches[0].clientY;
+    controls.rotateCamera(dx, dy);
+  }
+},{passive:false});
+
+lookArea.addEventListener('touchend', (e)=>{
+  if (e.touches.length === 0) {
+    lookActive = false;
+  }
+},{passive:false});
+
+lookArea.addEventListener('touchcancel', (e)=>{
+  lookActive = false;
+},{passive:false});
 
 init();
 animate();
 
 function init() {
   scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x222222);
 
   camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
   camera.position.set(0, 1.8, 0);
@@ -156,11 +340,53 @@ function init() {
   controls = new THREE.PointerLockControls(camera);
   scene.add(controls.getObject());
 
-  document.body.addEventListener('click', () => {
-    if (!gameOver) {
-      controls.lock();
+  if (!isTouchDevice) {
+    document.body.addEventListener('click', () => {
+      if (gameState === "PLAY") {
+        controls.lock();
+      }
+    }, false);
+  } else {
+    // On mobile, just consider the controls always "locked"
+    controls.isLocked = true;
+  }
+
+  listener = new THREE.AudioListener();
+  camera.add(listener);
+
+  nextbotSound = new THREE.PositionalAudio(listener);
+  orbSound = new THREE.Audio(listener); 
+
+  const audioLoader = new THREE.AudioLoader();
+  audioLoader.load(
+    NEXTBOT_SOUND_URL,
+    (buffer) => {
+      nextbotSound.setBuffer(buffer);
+      nextbotSound.setRefDistance(10);
+      nextbotSound.setLoop(false);
+      nextbotSound.setVolume(1);
+      soundReady = true;
+      scheduleRandomSound();
+    },
+    undefined,
+    (err) => {
+      console.error("Error loading nextbot sound:", err);
     }
-  }, false);
+  );
+
+  audioLoader.load(
+    ORB_SOUND_URL,
+    (buffer) => {
+      orbSound.setBuffer(buffer);
+      orbSound.setLoop(false);
+      orbSound.setVolume(1);
+      orbSoundReady = true;
+    },
+    undefined,
+    (err) => {
+      console.error("Error loading orb sound:", err);
+    }
+  );
 
   const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
   scene.add(light);
@@ -177,20 +403,44 @@ function init() {
   scene.add(floor);
 
   generateObstacles(50, 200, 200);
+  generateOrbs(orbCount, 200, 200);
 
   const textureLoader = new THREE.TextureLoader();
-  const nextbotTexture = textureLoader.load(BASE64_NEXTBOT_IMAGE, () => { renderer.render(scene, camera); });
-  const nextbotGeometry = new THREE.PlaneGeometry(1,1);
-  const nextbotMaterial = new THREE.MeshBasicMaterial({ map: nextbotTexture, transparent: true });
-  nextbot = new THREE.Mesh(nextbotGeometry, nextbotMaterial);
-  nextbot.position.set(0,1,-10);
-  scene.add(nextbot);
+  textureLoader.load(
+    NEXTBOT_IMAGE_URL,
+    (texture) => {
+      const nextbotGeometry = new THREE.PlaneGeometry(4,4);
+      const nextbotMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
+      nextbot = new THREE.Mesh(nextbotGeometry, nextbotMaterial);
+      let spawnX = (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random()*10);
+      let spawnZ = (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random()*10);
+      nextbot.position.set(spawnX, 2, spawnZ);
+      nextbot.add(nextbotSound);
+      scene.add(nextbot);
+      resetGameVariables();
+    },
+    undefined,
+    (err) => {
+      console.error("Error loading texture:", err);
+    }
+  );
 
   document.addEventListener('keydown', onKeyDown, false);
   document.addEventListener('keyup', onKeyUp, false);
   window.addEventListener('resize', onWindowResize, false);
 
-  resetGame();
+  updateScoreboard();
+}
+
+function scheduleRandomSound() {
+  if (!soundReady) return;
+  const interval = Math.random() * 10000 + 5000; 
+  soundPlayInterval = setTimeout(() => {
+    if (gameState === "PLAY" && controls.isLocked && !nextbotSound.isPlaying) {
+      nextbotSound.play();
+    }
+    scheduleRandomSound();
+  }, interval);
 }
 
 function generateObstacles(count, width, height) {
@@ -199,16 +449,15 @@ function generateObstacles(count, width, height) {
   boundingBoxes = [];
 
   for (let i = 0; i < count; i++) {
-    let w = Math.random() * 2 + 1;
-    let h = Math.random()*2+1;
-    let d = Math.random() * 2 + 1;
+    let w = (Math.random() * 2 + 1)*2; 
+    let h = (Math.random()*2+1)*2;
+    let d = (Math.random() * 2 + 1)*2;
     const boxGeo = new THREE.BoxGeometry(w, h, d);
     const boxMat = new THREE.MeshLambertMaterial({ color:0x888888 });
     const box = new THREE.Mesh(boxGeo, boxMat);
     const posX = (Math.random() - 0.5) * width;
     const posZ = (Math.random() - 0.5) * height;
     if (Math.abs(posX) < 5 && Math.abs(posZ) < 5) {
-      // too close to player start, skip
       continue;
     }
     box.position.set(posX, h/2, posZ);
@@ -216,25 +465,71 @@ function generateObstacles(count, width, height) {
     objects.push(box);
     boxes.push(box);
 
-    // Compute bounding box for the object
     let bbox = new THREE.Box3().setFromObject(box);
     boundingBoxes.push(bbox);
   }
 }
 
-function resetGame() {
-  gameOver = false;
-  overlay.style.display = 'none';
+function generateOrbs(count, width, height) {
+  orbs.forEach(o => scene.remove(o));
+  orbs = [];
+  collectedOrbs = 0;
+  updateScoreboard();
+
+  for (let i = 0; i < count; i++) {
+    let orbGeo = new THREE.SphereGeometry(0.5, 16, 16);
+    let orbMat = new THREE.MeshStandardMaterial({ color:0xffdd00, emissive:0xffff00, emissiveIntensity:1 });
+    let orb = new THREE.Mesh(orbGeo, orbMat);
+    const posX = (Math.random() - 0.5) * width;
+    const posZ = (Math.random() - 0.5) * height;
+    orb.position.set(posX, 0.5, posZ);
+    scene.add(orb);
+    orbs.push(orb);
+  }
+}
+
+function resetGameVariables() {
+  gameState = "PLAY";
+  hideOverlay();
   controls.getObject().position.set(0,1.8,0);
   velocity.set(0,0,0);
-  
-  nextbot.position.set((Math.random()-0.5)*50, 1, (Math.random()-0.5)*50);
-  nextbotVelocity = 0.04; // doubled speed
+  nextbotVerticalVelocity = 0;
+
+  if (soundPlayInterval) clearTimeout(soundPlayInterval);
+  scheduleRandomSound();
 }
 
 function restartGame() {
-  resetGame();
-  controls.lock();
+  nextbotVelocity = parseFloat(inputNextbotSpeed.value);
+  playerSpeedMultiplier = parseFloat(inputPlayerSpeed.value);
+  orbCount = parseInt(inputOrbsNeeded.value,10);
+
+  if (nextbot) scene.remove(nextbot);
+  boxes.forEach(b => scene.remove(b));
+  boxes = [];
+  boundingBoxes = [];
+  orbs.forEach(o => scene.remove(o));
+  orbs = [];
+
+  generateObstacles(50,200,200);
+  generateOrbs(orbCount,200,200);
+
+  const spawnX = (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random()*10);
+  const spawnZ = (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random()*10);
+  nextbot.position.set(spawnX,2,spawnZ);
+  scene.add(nextbot);
+
+  resetGameVariables();
+  if (!isTouchDevice) controls.lock();
+}
+
+function showOverlay(message) {
+  overlayMessage.textContent = message;
+  overlay.style.display = 'flex';
+}
+
+function hideOverlay() {
+  overlay.style.display = 'none';
 }
 
 function onKeyDown(event) {
@@ -264,73 +559,127 @@ function onWindowResize() {
 function animate() {
   requestAnimationFrame(animate);
 
-  if (controls.isLocked && !gameOver) {
-    const delta = 0.1 * 2; // doubled overall player speed (was delta = 0.1, now 0.2 effectively)
+  if (!nextbot) {
+    renderer.render(scene, camera);
+    return;
+  }
 
+  if (gameState === "PLAY" && (controls.isLocked || isTouchDevice)) {
+    const delta = 0.2; 
     velocity.x -= velocity.x * 0.1;
     velocity.z -= velocity.z * 0.1;
 
-    // direction.z = Number(moveForward) - Number(moveBackward);
-    // Swapping to ensure W is forward:
-    // Currently W sets moveForward = true which means direction.z = 1 if forward and 0 if backward
-    // Instead of subtracting, let's flip the sign. If W is forward, we want negative z to move forward 
-    // because translateZ(-) moves forward. Let's just flip the approach:
-    direction.z = Number(moveBackward) - Number(moveForward); 
+    direction.z = Number(moveBackward) - Number(moveForward);
     direction.x = Number(moveRight) - Number(moveLeft);
     direction.normalize();
 
-    if (moveForward || moveBackward) velocity.z -= direction.z * 0.1; // doubled from 0.05 to 0.1
-    if (moveLeft || moveRight) velocity.x -= direction.x * 0.1; // also doubled
+    if (moveForward || moveBackward) velocity.z -= direction.z * playerSpeedMultiplier;
+    if (moveLeft || moveRight) velocity.x -= direction.x * playerSpeedMultiplier;
 
-    // Save old position for collision checks
     let playerOldPos = controls.getObject().position.clone();
     controls.getObject().translateX(-velocity.x * delta);
     controls.getObject().translateZ(-velocity.z * delta);
 
-    // Check player collisions
     if (checkCollision(controls.getObject().position, playerCollisionRadius)) {
-      // revert to old position if collision
       controls.getObject().position.copy(playerOldPos);
     }
 
-    // Move Nextbot towards player
-    let playerPos = controls.getObject().position;
+    // Check orb collection
+    checkOrbCollection(controls.getObject().position);
+    if (collectedOrbs >= orbCount) {
+      gameState = "WIN";
+      showOverlay("You Win!");
+    }
+
+    // Nextbot movement and more aggressive climbing
+    let playerPos = controls.getObject().position.clone();
+    let angleToPlayer = Math.atan2(playerPos.z - nextbot.position.z, playerPos.x - nextbot.position.x);
+    if (!tryNextbotMove(angleToPlayer, nextbotVelocity)) {
+      // If blocked, nextbot stays put
+    }
+
+    // Apply gravity to nextbot
+    applyNextbotGravity();
+
     let dx = playerPos.x - nextbot.position.x;
     let dz = playerPos.z - nextbot.position.z;
-    let angle = Math.atan2(dz, dx);
     let distance = Math.sqrt(dx*dx + dz*dz);
-    
-    let nextbotOldPos = nextbot.position.clone();
-    if (distance > 0.1) {
-      nextbot.position.x += Math.cos(angle)*nextbotVelocity;
-      nextbot.position.z += Math.sin(angle)*nextbotVelocity;
+
+    nextbot.rotation.y = -Math.atan2(dz, dx) + Math.PI/2;
+
+    // Sound volume adjustment
+    if (soundReady && nextbotSound.isPlaying) {
+      let maxDist = 50; 
+      let vol = 1 - (distance / maxDist);
+      if (vol < 0) vol = 0;
+      nextbotSound.setVolume(vol);
     }
 
-    // Check nextbot collisions with obstacles
-    if (checkCollision(nextbot.position, nextbotCollisionRadius)) {
-      // revert nextbot if collision
-      nextbot.position.copy(nextbotOldPos);
-    }
-
-    nextbot.rotation.y = -angle + Math.PI/2;
-
-    // Check game over
     if (distance < (playerCollisionRadius + nextbotCollisionRadius)) {
-      gameOver = true;
-      overlay.style.display = 'flex';
-      controls.unlock();
+      gameState = "GAME_OVER";
+      showOverlay("Game Over");
+      if (!isTouchDevice) controls.unlock();
     }
+
   }
 
   renderer.render(scene, camera);
 }
 
+function tryNextbotMove(angle, speed) {
+  let oldPos = nextbot.position.clone();
+  let newX = nextbot.position.x + Math.cos(angle)*speed;
+  let newZ = nextbot.position.z + Math.sin(angle)*speed;
+
+  // Try at current height
+  nextbot.position.set(newX, nextbot.position.y, newZ);
+  if (!checkCollision(nextbot.position, nextbotCollisionRadius)) {
+    return true;
+  }
+
+  // Collision at current height, revert XZ
+  nextbot.position.copy(oldPos);
+
+  // More aggressive climbing
+  // Increase maxClimbHeight and step
+  let maxClimbHeight = 10.0; 
+  let climbStep = 0.5;
+  let climbed = false;
+  for (let h = climbStep; h <= maxClimbHeight; h += climbStep) {
+    nextbot.position.set(oldPos.x, oldPos.y + h, oldPos.z);
+    nextbot.position.x = newX;
+    nextbot.position.z = newZ;
+    if (!checkCollision(nextbot.position, nextbotCollisionRadius)) {
+      climbed = true;
+      nextbotVerticalVelocity = 0; 
+      break;
+    }
+    nextbot.position.copy(oldPos);
+  }
+
+  if (!climbed) {
+    nextbot.position.copy(oldPos);
+    return false;
+  }
+
+  return true;
+}
+
+function applyNextbotGravity() {
+  let oldPos = nextbot.position.clone();
+  nextbotVerticalVelocity -= gravity;
+  nextbot.position.y += nextbotVerticalVelocity;
+
+  if (checkCollision(nextbot.position, nextbotCollisionRadius)) {
+    nextbot.position.copy(oldPos);
+    nextbotVerticalVelocity = 0;
+  }
+}
+
 function checkCollision(position, radius) {
-  // Check sphere (position, radius) against all bounding boxes
   const center = position;
   for (let i = 0; i < boundingBoxes.length; i++) {
     const box = boundingBoxes[i];
-    // Clamp the sphere center to the box to find closest point
     const closestPoint = new THREE.Vector3(
       Math.max(box.min.x, Math.min(center.x, box.max.x)),
       Math.max(box.min.y, Math.min(center.y, box.max.y)),
@@ -338,14 +687,39 @@ function checkCollision(position, radius) {
     );
     const dist = center.distanceTo(closestPoint);
     if (dist < radius) {
-      // collision
       return true;
     }
   }
+
+  // Floor collision
+  if (position.y < radius) {
+    return true;
+  }
+
   return false;
 }
-</script><canvas data-engine="three.js r156" width="1894" height="1353" style="display: block; width: 1894px; height: 1353px;"></canvas>
 
+function checkOrbCollection(playerPos) {
+  const collectionRadius = 2.0; 
+  for (let i = orbs.length-1; i >= 0; i--) {
+    let orb = orbs[i];
+    let dist = playerPos.distanceTo(orb.position);
+    if (dist < collectionRadius) {
+      scene.remove(orb);
+      orbs.splice(i,1);
+      collectedOrbs++;
+      updateScoreboard();
+      if (orbSoundReady) {
+        orbSound.play();
+      }
+    }
+  }
+}
 
+function updateScoreboard() {
+  scoreboard.textContent = "Score: " + collectedOrbs;
+}
+</script>
+</body>
+</html>
 
-</body></html>
