@@ -6,88 +6,60 @@
 <title>Nextbot Game</title>
 <style>
   body, html {
-    margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000;
-    font-family: sans-serif;
-    touch-action: none;
+    margin:0; padding:0; height:100%; overflow:hidden; background:#000;
+    font-family:sans-serif;
+    touch-action:none; /* Allow multi-touch without scrolling */
   }
   #overlay {
-    position: absolute;
-    top:0; left:0; right:0; bottom:0;
-    display: none;
-    background: rgba(0,0,0,0.8);
-    color: white;
-    font-size: 32px;
-    text-align: center;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    z-index: 10;
+    position:absolute; top:0; left:0; right:0; bottom:0;
+    display:none;
+    background:rgba(0,0,0,0.8);
+    color:white;
+    font-size:32px;
+    text-align:center;
+    justify-content:center;
+    align-items:center;
+    flex-direction:column;
+    z-index:10;
   }
-  #overlay .message {
-    margin-bottom: 20px;
-  }
+  #overlay .message { margin-bottom:20px; }
   #overlay button {
-    font-size: 24px;
-    padding: 10px 20px;
-    margin: 10px;
-    cursor:pointer;
+    font-size:24px; padding:10px 20px; margin:10px; cursor:pointer;
   }
   #overlay label {
-    display: block;
-    font-size: 20px;
-    margin: 5px 0;
+    display:block; font-size:20px; margin:5px 0;
   }
   #overlay input {
-    font-size: 20px;
-    width: 100px;
-    text-align: center;
+    font-size:20px; width:100px; text-align:center;
   }
-  canvas {
-    display: block;
-  }
+  canvas { display:block; }
+
   #scoreboard {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    color: white;
-    font-size: 24px;
-    z-index: 5;
+    position:absolute; top:10px; left:10px;
+    color:white; font-size:24px; z-index:5;
   }
-  /* Touch controls */
+
   #touchControls {
-    position: absolute;
-    bottom: 10px;
-    left: 10px;
-    z-index: 10;
+    position:absolute; bottom:10px; left:10px; z-index:10;
   }
   #dpad {
-    width: 150px;
-    height: 150px;
-    position: relative;
+    width:150px; height:150px; position:relative;
+    touch-action:none; /* Ensure multi-touch here as well */
   }
   #dpad button {
-    position: absolute;
-    width: 50px;
-    height: 50px;
-    opacity: 0.7;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.5);
-    border: none;
-    font-size: 20px;
-    text-align: center;
-    line-height: 50px;
-    user-select: none;
+    position:absolute; width:50px; height:50px;
+    opacity:0.7; border-radius:50%; background:rgba(255,255,255,0.5);
+    border:none; font-size:20px; text-align:center; line-height:50px; user-select:none;
   }
-  #dpad .up { top: 0; left: 50px; }
-  #dpad .down { bottom: 0; left: 50px; }
-  #dpad .left { left: 0; top: 50px; }
-  #dpad .right { right:0; top: 50px; }
+  #dpad .up    { top:0; left:50px; }
+  #dpad .down  { bottom:0; left:50px; }
+  #dpad .left  { left:0; top:50px; }
+  #dpad .right { right:0; top:50px; }
 
-  /* Touch look area (right half of screen) */
   #lookArea {
-    position: absolute;
-    top:0; right:0; bottom:0; width: 50%;
+    position:absolute; top:0; right:0; bottom:0; width:50%;
     z-index:10;
+    touch-action:none; /* Important for pointer events multitouch */
   }
 </style>
 </head>
@@ -114,7 +86,7 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.156.1/build/three.min.js"></script>
 <script>
 (function() {
-    THREE.PointerLockControls = function ( camera ) {
+    THREE.PointerLockControls = function (camera) {
         var scope = this;
         camera.rotation.set(0,0,0);
         var pitchObject = new THREE.Object3D();
@@ -127,12 +99,12 @@
         var PI_2 = Math.PI / 2;
 
         var onMouseMove = function(event) {
-            if (!scope.isLocked && !isTouchDevice) return; 
+            if (!scope.isLocked && !isTouchDevice) return;
+            var mult = (isTouchDevice ? 0.004 : 0.002); // Double sensitivity on mobile
             var movementX = event.movementX || 0;
             var movementY = event.movementY || 0;
-
-            yawObject.rotation.y -= movementX * 0.002;
-            pitchObject.rotation.x -= movementY * 0.002;
+            yawObject.rotation.y -= movementX * mult;
+            pitchObject.rotation.x -= movementY * mult;
             pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, pitchObject.rotation.x));
         };
 
@@ -142,9 +114,7 @@
             document.removeEventListener('mousemove', onMouseMove, false);
         };
 
-        this.getObject = function() {
-            return yawObject;
-        };
+        this.getObject = function() { return yawObject; };
 
         this.getDirection = (function() {
             var direction = new THREE.Vector3(0,0,-1);
@@ -161,503 +131,449 @@
         var onPointerlockChange = function() {
             scope.isLocked = (document.pointerLockElement === document.body);
         };
-
-        var onPointerlockError = function() {
-            console.error('PointerLockControls: Unable to use Pointer Lock API');
-        };
-
+        var onPointerlockError = function() { console.error('PointerLockControls: Unable to use Pointer Lock API'); };
         document.addEventListener('pointerlockchange', onPointerlockChange, false);
         document.addEventListener('pointerlockerror', onPointerlockError, false);
 
         this.lock = function() {
             if (!isTouchDevice) {
-              document.body.requestPointerLock();
+                document.body.requestPointerLock();
             } else {
-              // On mobile, just set isLocked = true
-              scope.isLocked = true;
+                scope.isLocked = true;
             }
         };
 
         this.unlock = function() {
             if (!isTouchDevice) {
-              document.exitPointerLock();
+                document.exitPointerLock();
             } else {
-              scope.isLocked = false;
+                scope.isLocked = false;
             }
         };
 
-        // Add methods for manual camera rotation (used for touch)
+        // Method for manual camera rotation (used for pointer events on the look area)
         this.rotateCamera = function(deltaX, deltaY) {
-            yawObject.rotation.y -= deltaX * 0.002;
-            pitchObject.rotation.x -= deltaY * 0.002;
+            var mult = (isTouchDevice ? 0.004 : 0.002); // double on mobile
+            yawObject.rotation.y -= deltaX * mult;
+            pitchObject.rotation.x -= deltaY * mult;
             pitchObject.rotation.x = Math.max(-PI_2, Math.min(PI_2, pitchObject.rotation.x));
         };
     };
 })();
 </script>
 <script>
-// External URLs
 const NEXTBOT_IMAGE_URL = "nextbot_image.png";
 const NEXTBOT_SOUND_URL = "nextbot_sound.mp3";
 const ORB_SOUND_URL = "orb_sound.mp3";
 
 let camera, scene, renderer, controls;
-let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
+let moveForward=false, moveBackward=false, moveLeft=false, moveRight=false;
 let velocity = new THREE.Vector3();
 let direction = new THREE.Vector3();
-
 let objects = [];
-let boxes = []; 
+let boxes = [];
 let boundingBoxes = [];
 
 let nextbot;
-let nextbotVelocity = 0.32; // adjustable
-let playerSpeedMultiplier = 0.2; // adjustable
+let nextbotVelocity=0.32;
+let playerSpeedMultiplier=0.2;
 
-let playerCollisionRadius = 0.5; 
-let nextbotCollisionRadius = 2; 
-let gameState = "PLAY"; // "PLAY", "GAME_OVER", "WIN"
+let playerCollisionRadius=0.5;
+let nextbotCollisionRadius=2;
+let gameState="PLAY";
 
 let listener, nextbotSound, orbSound;
-let soundReady = false;
-let orbSoundReady = false;
-let soundPlayInterval = null;
+let soundReady=false;
+let orbSoundReady=false;
+let soundPlayInterval=null;
+let nextbotVerticalVelocity=0;
+const gravity=0.02;
 
-// Gravity and vertical movement for the nextbot
-let nextbotVerticalVelocity = 0;
-const gravity = 0.02; 
+let orbs=[];
+let orbCount=10;
+let collectedOrbs=0;
 
-// Orbs
-let orbs = [];
-let orbCount = 10; 
-let collectedOrbs = 0;
-const scoreboard = document.getElementById('scoreboard');
-
-// Overlay and inputs
-const overlay = document.getElementById('overlay');
-const restartBtn = document.getElementById('restartBtn');
-const overlayMessage = document.querySelector('#overlay .message');
-const inputNextbotSpeed = document.getElementById('inputNextbotSpeed');
-const inputPlayerSpeed = document.getElementById('inputPlayerSpeed');
-const inputOrbsNeeded = document.getElementById('inputOrbsNeeded');
+const scoreboard=document.getElementById('scoreboard');
+const overlay=document.getElementById('overlay');
+const restartBtn=document.getElementById('restartBtn');
+const overlayMessage=document.querySelector('#overlay .message');
+const inputNextbotSpeed=document.getElementById('inputNextbotSpeed');
+const inputPlayerSpeed=document.getElementById('inputPlayerSpeed');
+const inputOrbsNeeded=document.getElementById('inputOrbsNeeded');
 
 restartBtn.addEventListener('click', restartGame);
 
-// Touch detection
-const isTouchDevice = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
-const touchControls = document.getElementById('touchControls');
-const lookArea = document.getElementById('lookArea');
-if (isTouchDevice) {
-  touchControls.style.display = 'block';
-  lookArea.style.display = 'block';
+const isTouchDevice=('ontouchstart' in window)||navigator.maxTouchPoints>0;
+const touchControls=document.getElementById('touchControls');
+const lookArea=document.getElementById('lookArea');
+if(isTouchDevice){
+  touchControls.style.display='block';
+  lookArea.style.display='block';
 }
-
-// Touch-based movement events
-// We'll track state of movement based on touch on dpad buttons
-const dpad = document.getElementById('dpad');
-dpad.addEventListener('touchstart', onDpadTouchStart, {passive:false});
-dpad.addEventListener('touchend', onDpadTouchEnd, {passive:false});
-dpad.addEventListener('touchcancel', onDpadTouchEnd, {passive:false});
-dpad.addEventListener('touchmove', e=>e.preventDefault(), {passive:false});
-
-let activeButtons = {};
-
-function onDpadTouchStart(e) {
-  e.preventDefault();
-  for (let t of e.changedTouches) {
-    let elem = document.elementFromPoint(t.clientX, t.clientY);
-    if (elem && elem.tagName === 'BUTTON') {
-      activeButtons[t.identifier] = elem;
-      setMovementFromButton(elem, true);
-    }
-  }
-}
-
-function onDpadTouchEnd(e) {
-  e.preventDefault();
-  for (let t of e.changedTouches) {
-    let btn = activeButtons[t.identifier];
-    if (btn) {
-      setMovementFromButton(btn, false);
-      delete activeButtons[t.identifier];
-    }
-  }
-}
-
-function setMovementFromButton(button, state) {
-  if (button.classList.contains('up')) moveForward = state;
-  if (button.classList.contains('down')) moveBackward = state;
-  if (button.classList.contains('left')) moveLeft = state;
-  if (button.classList.contains('right')) moveRight = state;
-}
-
-// Touch-based look controls
-let lookActive = false;
-let lastTouchX, lastTouchY;
-
-lookArea.addEventListener('touchstart', (e)=>{
-  if (e.touches.length === 1) {
-    lookActive = true;
-    lastTouchX = e.touches[0].clientX;
-    lastTouchY = e.touches[0].clientY;
-  }
-},{passive:false});
-
-lookArea.addEventListener('touchmove', (e)=>{
-  if (lookActive && e.touches.length === 1) {
-    let dx = e.touches[0].clientX - lastTouchX;
-    let dy = e.touches[0].clientY - lastTouchY;
-    lastTouchX = e.touches[0].clientX;
-    lastTouchY = e.touches[0].clientY;
-    controls.rotateCamera(dx, dy);
-  }
-},{passive:false});
-
-lookArea.addEventListener('touchend', (e)=>{
-  if (e.touches.length === 0) {
-    lookActive = false;
-  }
-},{passive:false});
-
-lookArea.addEventListener('touchcancel', (e)=>{
-  lookActive = false;
-},{passive:false});
 
 init();
 animate();
 
-function init() {
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x222222);
+// Use pointer events for D-pad
+const dpad=document.getElementById('dpad');
+const dpadUp=dpad.querySelector('.up');
+const dpadDown=dpad.querySelector('.down');
+const dpadLeft=dpad.querySelector('.left');
+const dpadRight=dpad.querySelector('.right');
 
-  camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
-  camera.position.set(0, 1.8, 0);
+// Helper to attach pointerdown/up
+function addPointerButtonBehavior(button, onStart, onEnd){
+  button.addEventListener('pointerdown', (e)=>{
+    e.currentTarget.setPointerCapture(e.pointerId);
+    onStart();
+  });
+  button.addEventListener('pointerup', (e)=>{
+    onEnd();
+    e.currentTarget.releasePointerCapture(e.pointerId);
+  });
+  button.addEventListener('pointercancel', (e)=>{
+    onEnd();
+  });
+}
 
-  renderer = new THREE.WebGLRenderer({ antialias:true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
+addPointerButtonBehavior(dpadUp, ()=>moveForward=true, ()=>moveForward=false);
+addPointerButtonBehavior(dpadDown, ()=>moveBackward=true, ()=>moveBackward=false);
+addPointerButtonBehavior(dpadLeft, ()=>moveLeft=true, ()=>moveLeft=false);
+addPointerButtonBehavior(dpadRight, ()=>moveRight=true, ()=>moveRight=false);
+
+// Pointer events for look area
+let lookPointerId=null;
+let lastPointerX,lastPointerY;
+
+lookArea.addEventListener('pointerdown',(e)=>{
+  if(lookPointerId===null) {
+    lookPointerId=e.pointerId;
+    lastPointerX=e.clientX;
+    lastPointerY=e.clientY;
+    lookArea.setPointerCapture(e.pointerId);
+  }
+});
+
+lookArea.addEventListener('pointermove',(e)=>{
+  if(e.pointerId===lookPointerId){
+    let dx=e.clientX-lastPointerX;
+    let dy=e.clientY-lastPointerY;
+    lastPointerX=e.clientX;
+    lastPointerY=e.clientY;
+    controls.rotateCamera(dx,dy);
+  }
+});
+
+lookArea.addEventListener('pointerup',(e)=>{
+  if(e.pointerId===lookPointerId){
+    lookPointerId=null;
+    lookArea.releasePointerCapture(e.pointerId);
+  }
+});
+
+lookArea.addEventListener('pointercancel',(e)=>{
+  if(e.pointerId===lookPointerId){
+    lookPointerId=null;
+  }
+});
+
+function init(){
+  scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x222222);
+  camera=new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
+  camera.position.set(0,1.8,0);
+
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(window.innerWidth,window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  controls = new THREE.PointerLockControls(camera);
+  controls=new THREE.PointerLockControls(camera);
   scene.add(controls.getObject());
 
-  if (!isTouchDevice) {
-    document.body.addEventListener('click', () => {
-      if (gameState === "PLAY") {
-        controls.lock();
-      }
+  if(!isTouchDevice){
+    document.body.addEventListener('click', ()=>{
+      if(gameState==="PLAY") controls.lock();
     }, false);
   } else {
-    // On mobile, just consider the controls always "locked"
-    controls.isLocked = true;
+    controls.isLocked=true;
   }
 
-  listener = new THREE.AudioListener();
+  listener=new THREE.AudioListener();
   camera.add(listener);
 
-  nextbotSound = new THREE.PositionalAudio(listener);
-  orbSound = new THREE.Audio(listener); 
+  nextbotSound=new THREE.PositionalAudio(listener);
+  orbSound=new THREE.Audio(listener);
 
-  const audioLoader = new THREE.AudioLoader();
-  audioLoader.load(
-    NEXTBOT_SOUND_URL,
-    (buffer) => {
-      nextbotSound.setBuffer(buffer);
-      nextbotSound.setRefDistance(10);
-      nextbotSound.setLoop(false);
-      nextbotSound.setVolume(1);
-      soundReady = true;
-      scheduleRandomSound();
-    },
-    undefined,
-    (err) => {
-      console.error("Error loading nextbot sound:", err);
-    }
-  );
+  const audioLoader=new THREE.AudioLoader();
+  audioLoader.load(NEXTBOT_SOUND_URL,(buffer)=>{
+    nextbotSound.setBuffer(buffer);
+    nextbotSound.setRefDistance(10);
+    nextbotSound.setLoop(false);
+    nextbotSound.setVolume(1);
+    soundReady=true;
+    scheduleRandomSound();
+  },undefined,(err)=>{console.error("Error loading nextbot sound:",err);});
 
-  audioLoader.load(
-    ORB_SOUND_URL,
-    (buffer) => {
-      orbSound.setBuffer(buffer);
-      orbSound.setLoop(false);
-      orbSound.setVolume(1);
-      orbSoundReady = true;
-    },
-    undefined,
-    (err) => {
-      console.error("Error loading orb sound:", err);
-    }
-  );
+  audioLoader.load(ORB_SOUND_URL,(buffer)=>{
+    orbSound.setBuffer(buffer);
+    orbSound.setLoop(false);
+    orbSound.setVolume(1);
+    orbSoundReady=true;
+  },undefined,(err)=>{console.error("Error loading orb sound:",err);});
 
-  const light = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+  const light=new THREE.HemisphereLight(0xffffff,0x444444,1.0);
   scene.add(light);
 
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.5);
-  dirLight.position.set(10, 10, 10);
+  const dirLight=new THREE.DirectionalLight(0xffffff,0.5);
+  dirLight.position.set(10,10,10);
   scene.add(dirLight);
 
-  // Floor
-  const floorGeometry = new THREE.PlaneGeometry(200, 200);
-  const floorMaterial = new THREE.MeshLambertMaterial({ color:0x555555 });
-  const floor = new THREE.Mesh(floorGeometry, floorMaterial);
-  floor.rotation.x = -Math.PI/2;
+  const floorGeometry=new THREE.PlaneGeometry(200,200);
+  const floorMaterial=new THREE.MeshLambertMaterial({color:0x555555});
+  const floor=new THREE.Mesh(floorGeometry,floorMaterial);
+  floor.rotation.x=-Math.PI/2;
   scene.add(floor);
 
-  generateObstacles(50, 200, 200);
-  generateOrbs(orbCount, 200, 200);
+  generateObstacles(50,200,200);
+  generateOrbs(orbCount,200,200);
 
-  const textureLoader = new THREE.TextureLoader();
-  textureLoader.load(
-    NEXTBOT_IMAGE_URL,
-    (texture) => {
-      const nextbotGeometry = new THREE.PlaneGeometry(4,4);
-      const nextbotMaterial = new THREE.MeshBasicMaterial({ map: texture, transparent: true, side: THREE.DoubleSide });
-      nextbot = new THREE.Mesh(nextbotGeometry, nextbotMaterial);
-      let spawnX = (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random()*10);
-      let spawnZ = (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random()*10);
-      nextbot.position.set(spawnX, 2, spawnZ);
-      nextbot.add(nextbotSound);
-      scene.add(nextbot);
-      resetGameVariables();
-    },
-    undefined,
-    (err) => {
-      console.error("Error loading texture:", err);
-    }
-  );
+  const textureLoader=new THREE.TextureLoader();
+  textureLoader.load(NEXTBOT_IMAGE_URL,(texture)=>{
+    const nextbotGeometry=new THREE.PlaneGeometry(4,4);
+    const nextbotMaterial=new THREE.MeshBasicMaterial({map:texture,transparent:true,side:THREE.DoubleSide});
+    let spawnX=(Math.random()<0.5?-1:1)*(90+Math.random()*10);
+    let spawnZ=(Math.random()<0.5?-1:1)*(90+Math.random()*10);
+    nextbot=new THREE.Mesh(nextbotGeometry,nextbotMaterial);
+    nextbot.position.set(spawnX,2,spawnZ);
+    nextbot.add(nextbotSound);
+    scene.add(nextbot);
+    resetGameVariables();
+  },undefined,(err)=>{console.error("Error loading texture:",err);});
 
-  document.addEventListener('keydown', onKeyDown, false);
-  document.addEventListener('keyup', onKeyUp, false);
-  window.addEventListener('resize', onWindowResize, false);
+  document.addEventListener('keydown',onKeyDown,false);
+  document.addEventListener('keyup',onKeyUp,false);
+  window.addEventListener('resize',onWindowResize,false);
 
   updateScoreboard();
 }
 
-function scheduleRandomSound() {
-  if (!soundReady) return;
-  const interval = Math.random() * 10000 + 5000; 
-  soundPlayInterval = setTimeout(() => {
-    if (gameState === "PLAY" && controls.isLocked && !nextbotSound.isPlaying) {
+function scheduleRandomSound(){
+  if(!soundReady)return;
+  const interval=Math.random()*10000+5000;
+  soundPlayInterval=setTimeout(()=>{
+    if(gameState==="PLAY"&&controls.isLocked&&!nextbotSound.isPlaying){
       nextbotSound.play();
     }
     scheduleRandomSound();
-  }, interval);
+  },interval);
 }
 
-function generateObstacles(count, width, height) {
-  objects = [];
-  boxes = [];
-  boundingBoxes = [];
+function generateObstacles(count,width,height){
+  objects=[];
+  boxes=[];
+  boundingBoxes=[];
 
-  for (let i = 0; i < count; i++) {
-    let w = (Math.random() * 2 + 1)*2; 
-    let h = (Math.random()*2+1)*2;
-    let d = (Math.random() * 2 + 1)*2;
-    const boxGeo = new THREE.BoxGeometry(w, h, d);
-    const boxMat = new THREE.MeshLambertMaterial({ color:0x888888 });
-    const box = new THREE.Mesh(boxGeo, boxMat);
-    const posX = (Math.random() - 0.5) * width;
-    const posZ = (Math.random() - 0.5) * height;
-    if (Math.abs(posX) < 5 && Math.abs(posZ) < 5) {
+  for(let i=0;i<count;i++){
+    let w=(Math.random()*2+1)*2;
+    let h=(Math.random()*2+1)*2;
+    let d=(Math.random()*2+1)*2;
+    const boxGeo=new THREE.BoxGeometry(w,h,d);
+    const boxMat=new THREE.MeshLambertMaterial({color:0x888888});
+    const box=new THREE.Mesh(boxGeo,boxMat);
+    const posX=(Math.random()-0.5)*width;
+    const posZ=(Math.random()-0.5)*height;
+    if(Math.abs(posX)<5&&Math.abs(posZ)<5){
       continue;
     }
-    box.position.set(posX, h/2, posZ);
+    box.position.set(posX,h/2,posZ);
     scene.add(box);
     objects.push(box);
     boxes.push(box);
 
-    let bbox = new THREE.Box3().setFromObject(box);
+    let bbox=new THREE.Box3().setFromObject(box);
     boundingBoxes.push(bbox);
   }
 }
 
-function generateOrbs(count, width, height) {
-  orbs.forEach(o => scene.remove(o));
-  orbs = [];
-  collectedOrbs = 0;
+function generateOrbs(count,width,height){
+  orbs.forEach(o=>scene.remove(o));
+  orbs=[];
+  collectedOrbs=0;
   updateScoreboard();
 
-  for (let i = 0; i < count; i++) {
-    let orbGeo = new THREE.SphereGeometry(0.5, 16, 16);
-    let orbMat = new THREE.MeshStandardMaterial({ color:0xffdd00, emissive:0xffff00, emissiveIntensity:1 });
-    let orb = new THREE.Mesh(orbGeo, orbMat);
-    const posX = (Math.random() - 0.5) * width;
-    const posZ = (Math.random() - 0.5) * height;
-    orb.position.set(posX, 0.5, posZ);
+  for(let i=0;i<count;i++){
+    let orbGeo=new THREE.SphereGeometry(0.5,16,16);
+    let orbMat=new THREE.MeshStandardMaterial({color:0xffdd00,emissive:0xffff00,emissiveIntensity:1});
+    let orb=new THREE.Mesh(orbGeo,orbMat);
+    const posX=(Math.random()-0.5)*width;
+    const posZ=(Math.random()-0.5)*height;
+    orb.position.set(posX,0.5,posZ);
     scene.add(orb);
     orbs.push(orb);
   }
 }
 
-function resetGameVariables() {
-  gameState = "PLAY";
+function resetGameVariables(){
+  gameState="PLAY";
   hideOverlay();
   controls.getObject().position.set(0,1.8,0);
   velocity.set(0,0,0);
-  nextbotVerticalVelocity = 0;
+  nextbotVerticalVelocity=0;
 
-  if (soundPlayInterval) clearTimeout(soundPlayInterval);
+  if(soundPlayInterval)clearTimeout(soundPlayInterval);
   scheduleRandomSound();
 }
 
-function restartGame() {
-  nextbotVelocity = parseFloat(inputNextbotSpeed.value);
-  playerSpeedMultiplier = parseFloat(inputPlayerSpeed.value);
-  orbCount = parseInt(inputOrbsNeeded.value,10);
+function restartGame(){
+  nextbotVelocity=parseFloat(inputNextbotSpeed.value);
+  playerSpeedMultiplier=parseFloat(inputPlayerSpeed.value);
+  orbCount=parseInt(inputOrbsNeeded.value,10);
 
-  if (nextbot) scene.remove(nextbot);
-  boxes.forEach(b => scene.remove(b));
-  boxes = [];
-  boundingBoxes = [];
-  orbs.forEach(o => scene.remove(o));
-  orbs = [];
+  if(nextbot)scene.remove(nextbot);
+  boxes.forEach(b=>scene.remove(b));
+  boxes=[];
+  boundingBoxes=[];
+  orbs.forEach(o=>scene.remove(o));
+  orbs=[];
 
   generateObstacles(50,200,200);
   generateOrbs(orbCount,200,200);
 
-  const spawnX = (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random()*10);
-  const spawnZ = (Math.random() < 0.5 ? -1 : 1) * (90 + Math.random()*10);
+  const spawnX=(Math.random()<0.5?-1:1)*(90+Math.random()*10);
+  const spawnZ=(Math.random()<0.5?-1:1)*(90+Math.random()*10);
   nextbot.position.set(spawnX,2,spawnZ);
   scene.add(nextbot);
 
   resetGameVariables();
-  if (!isTouchDevice) controls.lock();
+  if(!isTouchDevice)controls.lock();
 }
 
-function showOverlay(message) {
-  overlayMessage.textContent = message;
-  overlay.style.display = 'flex';
+function showOverlay(message){
+  overlayMessage.textContent=message;
+  overlay.style.display='flex';
 }
 
-function hideOverlay() {
-  overlay.style.display = 'none';
+function hideOverlay(){
+  overlay.style.display='none';
 }
 
-function onKeyDown(event) {
-  switch (event.code) {
-    case 'KeyW': moveForward = true; break;
-    case 'KeyS': moveBackward = true; break;
-    case 'KeyA': moveLeft = true; break;
-    case 'KeyD': moveRight = true; break;
+function onKeyDown(event){
+  switch(event.code){
+    case 'KeyW': moveForward=true;break;
+    case 'KeyS': moveBackward=true;break;
+    case 'KeyA': moveLeft=true;break;
+    case 'KeyD': moveRight=true;break;
   }
 }
 
-function onKeyUp(event) {
-  switch (event.code) {
-    case 'KeyW': moveForward = false; break;
-    case 'KeyS': moveBackward = false; break;
-    case 'KeyA': moveLeft = false; break;
-    case 'KeyD': moveRight = false; break;
+function onKeyUp(event){
+  switch(event.code){
+    case 'KeyW': moveForward=false;break;
+    case 'KeyS': moveBackward=false;break;
+    case 'KeyA': moveLeft=false;break;
+    case 'KeyD': moveRight=false;break;
   }
 }
 
-function onWindowResize() {
-  camera.aspect = window.innerWidth/window.innerHeight;
+function onWindowResize(){
+  camera.aspect=window.innerWidth/window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setSize(window.innerWidth,window.innerHeight);
 }
 
-function animate() {
+function animate(){
   requestAnimationFrame(animate);
 
-  if (!nextbot) {
-    renderer.render(scene, camera);
+  if(!nextbot){
+    renderer.render(scene,camera);
     return;
   }
 
-  if (gameState === "PLAY" && (controls.isLocked || isTouchDevice)) {
-    const delta = 0.2; 
-    velocity.x -= velocity.x * 0.1;
-    velocity.z -= velocity.z * 0.1;
+  if(gameState==="PLAY"&&(controls.isLocked||isTouchDevice)){
+    const delta=0.2;
+    velocity.x-=velocity.x*0.1;
+    velocity.z-=velocity.z*0.1;
 
-    direction.z = Number(moveBackward) - Number(moveForward);
-    direction.x = Number(moveRight) - Number(moveLeft);
+    direction.z=Number(moveBackward)-Number(moveForward);
+    direction.x=Number(moveRight)-Number(moveLeft);
     direction.normalize();
 
-    if (moveForward || moveBackward) velocity.z -= direction.z * playerSpeedMultiplier;
-    if (moveLeft || moveRight) velocity.x -= direction.x * playerSpeedMultiplier;
+    if(moveForward||moveBackward)velocity.z-=direction.z*playerSpeedMultiplier;
+    if(moveLeft||moveRight)velocity.x-=direction.x*playerSpeedMultiplier;
 
-    let playerOldPos = controls.getObject().position.clone();
-    controls.getObject().translateX(-velocity.x * delta);
-    controls.getObject().translateZ(-velocity.z * delta);
+    let playerOldPos=controls.getObject().position.clone();
+    controls.getObject().translateX(-velocity.x*delta);
+    controls.getObject().translateZ(-velocity.z*delta);
 
-    if (checkCollision(controls.getObject().position, playerCollisionRadius)) {
+    if(checkCollision(controls.getObject().position,playerCollisionRadius)){
       controls.getObject().position.copy(playerOldPos);
     }
 
-    // Check orb collection
     checkOrbCollection(controls.getObject().position);
-    if (collectedOrbs >= orbCount) {
-      gameState = "WIN";
+    if(collectedOrbs>=orbCount){
+      gameState="WIN";
       showOverlay("You Win!");
     }
 
-    // Nextbot movement and more aggressive climbing
-    let playerPos = controls.getObject().position.clone();
-    let angleToPlayer = Math.atan2(playerPos.z - nextbot.position.z, playerPos.x - nextbot.position.x);
-    if (!tryNextbotMove(angleToPlayer, nextbotVelocity)) {
-      // If blocked, nextbot stays put
+    let playerPos=controls.getObject().position.clone();
+    let angleToPlayer=Math.atan2(playerPos.z-nextbot.position.z,playerPos.x-nextbot.position.x);
+    if(!tryNextbotMove(angleToPlayer,nextbotVelocity)){
+      // no path
     }
 
-    // Apply gravity to nextbot
     applyNextbotGravity();
 
-    let dx = playerPos.x - nextbot.position.x;
-    let dz = playerPos.z - nextbot.position.z;
-    let distance = Math.sqrt(dx*dx + dz*dz);
+    let dx=playerPos.x-nextbot.position.x;
+    let dz=playerPos.z-nextbot.position.z;
+    let distance=Math.sqrt(dx*dx+dz*dz);
 
-    nextbot.rotation.y = -Math.atan2(dz, dx) + Math.PI/2;
+    nextbot.rotation.y=-Math.atan2(dz,dx)+Math.PI/2;
 
-    // Sound volume adjustment
-    if (soundReady && nextbotSound.isPlaying) {
-      let maxDist = 50; 
-      let vol = 1 - (distance / maxDist);
-      if (vol < 0) vol = 0;
+    if(soundReady&&nextbotSound.isPlaying){
+      let maxDist=50;
+      let vol=1-(distance/maxDist);
+      if(vol<0)vol=0;
       nextbotSound.setVolume(vol);
     }
 
-    if (distance < (playerCollisionRadius + nextbotCollisionRadius)) {
-      gameState = "GAME_OVER";
+    if(distance<(playerCollisionRadius+nextbotCollisionRadius)){
+      gameState="GAME_OVER";
       showOverlay("Game Over");
-      if (!isTouchDevice) controls.unlock();
+      if(!isTouchDevice)controls.unlock();
     }
-
   }
 
-  renderer.render(scene, camera);
+  renderer.render(scene,camera);
 }
 
-function tryNextbotMove(angle, speed) {
-  let oldPos = nextbot.position.clone();
-  let newX = nextbot.position.x + Math.cos(angle)*speed;
-  let newZ = nextbot.position.z + Math.sin(angle)*speed;
+function tryNextbotMove(angle,speed){
+  let oldPos=nextbot.position.clone();
+  let newX=nextbot.position.x+Math.cos(angle)*speed;
+  let newZ=nextbot.position.z+Math.sin(angle)*speed;
 
-  // Try at current height
-  nextbot.position.set(newX, nextbot.position.y, newZ);
-  if (!checkCollision(nextbot.position, nextbotCollisionRadius)) {
+  nextbot.position.set(newX,nextbot.position.y,newZ);
+  if(!checkCollision(nextbot.position,nextbotCollisionRadius)){
     return true;
   }
 
-  // Collision at current height, revert XZ
   nextbot.position.copy(oldPos);
 
-  // More aggressive climbing
-  // Increase maxClimbHeight and step
-  let maxClimbHeight = 10.0; 
-  let climbStep = 0.5;
-  let climbed = false;
-  for (let h = climbStep; h <= maxClimbHeight; h += climbStep) {
-    nextbot.position.set(oldPos.x, oldPos.y + h, oldPos.z);
-    nextbot.position.x = newX;
-    nextbot.position.z = newZ;
-    if (!checkCollision(nextbot.position, nextbotCollisionRadius)) {
-      climbed = true;
-      nextbotVerticalVelocity = 0; 
+  let maxClimbHeight=10.0;
+  let climbStep=0.5;
+  let climbed=false;
+  for(let h=climbStep;h<=maxClimbHeight;h+=climbStep){
+    nextbot.position.set(oldPos.x,oldPos.y+h,oldPos.z);
+    nextbot.position.x=newX;
+    nextbot.position.z=newZ;
+    if(!checkCollision(nextbot.position,nextbotCollisionRadius)){
+      climbed=true;
+      nextbotVerticalVelocity=0;
       break;
     }
     nextbot.position.copy(oldPos);
   }
 
-  if (!climbed) {
+  if(!climbed){
     nextbot.position.copy(oldPos);
     return false;
   }
@@ -665,59 +581,56 @@ function tryNextbotMove(angle, speed) {
   return true;
 }
 
-function applyNextbotGravity() {
-  let oldPos = nextbot.position.clone();
-  nextbotVerticalVelocity -= gravity;
-  nextbot.position.y += nextbotVerticalVelocity;
+function applyNextbotGravity(){
+  let oldPos=nextbot.position.clone();
+  nextbotVerticalVelocity-=gravity;
+  nextbot.position.y+=nextbotVerticalVelocity;
 
-  if (checkCollision(nextbot.position, nextbotCollisionRadius)) {
+  if(checkCollision(nextbot.position,nextbotCollisionRadius)){
     nextbot.position.copy(oldPos);
-    nextbotVerticalVelocity = 0;
+    nextbotVerticalVelocity=0;
   }
 }
 
-function checkCollision(position, radius) {
-  const center = position;
-  for (let i = 0; i < boundingBoxes.length; i++) {
-    const box = boundingBoxes[i];
-    const closestPoint = new THREE.Vector3(
-      Math.max(box.min.x, Math.min(center.x, box.max.x)),
-      Math.max(box.min.y, Math.min(center.y, box.max.y)),
-      Math.max(box.min.z, Math.min(center.z, box.max.z))
+function checkCollision(position,radius){
+  const center=position;
+  for(let i=0;i<boundingBoxes.length;i++){
+    const box=boundingBoxes[i];
+    const closestPoint=new THREE.Vector3(
+      Math.max(box.min.x,Math.min(center.x,box.max.x)),
+      Math.max(box.min.y,Math.min(center.y,box.max.y)),
+      Math.max(box.min.z,Math.min(center.z,box.max.z))
     );
-    const dist = center.distanceTo(closestPoint);
-    if (dist < radius) {
+    const dist=center.distanceTo(closestPoint);
+    if(dist<radius){
       return true;
     }
   }
 
-  // Floor collision
-  if (position.y < radius) {
+  if(position.y<radius){
     return true;
   }
 
   return false;
 }
 
-function checkOrbCollection(playerPos) {
-  const collectionRadius = 2.0; 
-  for (let i = orbs.length-1; i >= 0; i--) {
-    let orb = orbs[i];
-    let dist = playerPos.distanceTo(orb.position);
-    if (dist < collectionRadius) {
+function checkOrbCollection(playerPos){
+  const collectionRadius=2.0;
+  for(let i=orbs.length-1;i>=0;i--){
+    let orb=orbs[i];
+    let dist=playerPos.distanceTo(orb.position);
+    if(dist<collectionRadius){
       scene.remove(orb);
       orbs.splice(i,1);
       collectedOrbs++;
       updateScoreboard();
-      if (orbSoundReady) {
-        orbSound.play();
-      }
+      if(orbSoundReady)orbSound.play();
     }
   }
 }
 
-function updateScoreboard() {
-  scoreboard.textContent = "Score: " + collectedOrbs;
+function updateScoreboard(){
+  scoreboard.textContent="Score: "+collectedOrbs;
 }
 </script>
 </body>
